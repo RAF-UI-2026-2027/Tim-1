@@ -1,28 +1,6 @@
-Enum account_status {
-  active
-  suspended
-  banned
-  deleted
-}
-
-Enum friendship_status {
-  pending
-  accepted
-  blocked
-  declined
-}
-
-Enum penalty_type {
-  warning
-  chat_restriction
-  ranked_restriction
-  temporary_ban
-  permanent_ban
-}
-
 Table regions {
   region_id int [pk, increment]
-  code varchar(10) [unique, not null, note: 'EUW, EUNE, NA, KR...']
+  code varchar(10) [unique, not null]
   name varchar(50) [not null]
   server_location varchar(100)
   timezone varchar(50)
@@ -31,8 +9,8 @@ Table regions {
 
 Table games {
   game_id int [pk, increment]
-  name varchar(100) [unique, not null, note: 'League of Legends, Valorant...']
-  short_code varchar(10) [unique, not null, note: 'LOL, VAL, TFT, LOR']
+  name varchar(100) [unique, not null]
+  short_code varchar(10) [unique, not null]
   genre varchar(50)
   release_date date
   is_active boolean [not null]
@@ -40,17 +18,30 @@ Table games {
 
 Table accounts {
   account_id bigint [pk, increment]
-  puuid uuid [unique, not null, note: 'Globalni jedinstveni ID igraca']
-  game_name varchar(16) [not null, note: 'Deo Riot ID-a pre #']
-  tag_line varchar(5) [not null, note: 'Deo Riot ID-a posle #']
+  puuid uuid [unique, not null]
+  game_name varchar(16) [not null]
+  tag_line varchar(5) [not null]
   email varchar(255) [unique, not null]
-  password varchar(255) [not null]
+  password_hash varchar(255) [not null]
   date_of_birth date [not null]
-  country_code char(2)
+  country varchar(40)
   home_region_id int [not null, ref: > regions.region_id]
-  status account_status [not null]
   created_at timestamp [not null]
-  last_login_at timestamp
+}
+
+Table account_statuses {
+  status_id int [pk, increment]
+  name varchar(30) [unique, not null]
+  description text
+}
+
+Table account_status_history {
+  account_status_history_id bigint [pk, increment]
+  account_id bigint [not null, ref: > accounts.account_id]
+  status_id int [not null, ref: > account_statuses.status_id]
+  valid_from timestamp [not null]
+  valid_to timestamp
+  reason text
 }
 
 Table game_accounts {
@@ -63,33 +54,95 @@ Table game_accounts {
   last_played_at timestamp
 }
 
-Table login_sessions {
-  session_id bigint [pk, increment]
+Table launcher_sessions {
+  launcher_session_id bigint [pk, increment]
   account_id bigint [not null, ref: > accounts.account_id]
   ip_address varchar(45) [not null]
   device_type varchar(50)
-  client_version varchar(20)
+  operating_system varchar(50)
+  launcher_version varchar(20)
   is_successful boolean [not null]
   login_at timestamp [not null]
   logout_at timestamp
 }
 
+Table game_sessions {
+  game_session_id bigint [pk, increment]
+  launcher_session_id bigint [not null, ref: > launcher_sessions.launcher_session_id]
+  game_account_id bigint [not null, ref: > game_accounts.game_account_id]
+  client_version varchar(20)
+  started_at timestamp [not null]
+  ended_at timestamp
+}
+
+Table friend_requests {
+  friend_request_id bigint [pk, increment]
+  sender_id bigint [not null, ref: > accounts.account_id]
+  receiver_id bigint [not null, ref: > accounts.account_id]
+  sent_at timestamp [not null]
+}
+
+Table friend_request_statuses {
+  request_status_id int [pk, increment]
+  name varchar(30) [unique, not null]
+  description text
+}
+
+Table friend_request_status_history {
+  request_status_history_id bigint [pk, increment]
+  friend_request_id bigint [not null, ref: > friend_requests.friend_request_id]
+  request_status_id int [not null, ref: > friend_request_statuses.request_status_id]
+  valid_from timestamp [not null]
+  valid_to timestamp
+}
+
 Table friendships {
   friendship_id bigint [pk, increment]
-  requester_id bigint [not null, ref: > accounts.account_id]
-  addressee_id bigint [not null, ref: > accounts.account_id]
-  status friendship_status [not null, default: 'pending']
-  created_at timestamp [not null]
-  responded_at timestamp
+  account1_id bigint [not null, ref: > accounts.account_id]
+  account2_id bigint [not null, ref: > accounts.account_id]
+  friend_request_id bigint [unique, not null, ref: - friend_requests.friend_request_id]
+  friends_since timestamp [not null]
+  ended_at timestamp
+}
+
+Table blocked_players {
+  block_id bigint [pk, increment]
+  blocker_id bigint [not null, ref: > accounts.account_id]
+  blocked_id bigint [not null, ref: > accounts.account_id]
+  reason varchar(255)
+  blocked_at timestamp [not null]
+  unblocked_at timestamp
+}
+
+Table penalty_types {
+  penalty_type_id int [pk, increment]
+  name varchar(50) [unique, not null]
+  description text
+  severity int [not null]
 }
 
 Table account_penalties {
   penalty_id bigint [pk, increment]
   account_id bigint [not null, ref: > accounts.account_id]
-  game_id int [ref: > games.game_id, not null]
-  type penalty_type [not null]
+  game_id int [not null, ref: > games.game_id]
   reason text [not null]
   issued_at timestamp [not null]
-  expires_at timestamp
-  is_active boolean [not null]
+}
+
+Table account_penalty_types {
+  account_penalty_type_id bigint [pk, increment]
+  penalty_id bigint [not null, ref: > account_penalties.penalty_id]
+  penalty_type_id int [not null, ref: > penalty_types.penalty_type_id]
+  valid_from timestamp [not null]
+  valid_to timestamp
+}
+
+Table riot_id_history {
+  riot_id_history_id bigint [pk, increment]
+  account_id bigint [not null, ref: > accounts.account_id]
+  old_game_name varchar(16) [not null]
+  old_tag_line varchar(5) [not null]
+  new_game_name varchar(16) [not null]
+  new_tag_line varchar(5) [not null]
+  changed_at timestamp [not null]
 }
