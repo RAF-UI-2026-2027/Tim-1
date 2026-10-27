@@ -158,17 +158,6 @@ Table lol_client_settings {
   updated_at timestamp [not null]
 }
 
-Table queue_types {
-  queue_type_id int [pk, increment]
-  game_id int [not null, ref: > games.game_id]
-  name varchar(50) [unique, not null]
-  map_name varchar(50) [not null]
-  team_size int [not null]
-  max_party_size int [not null]
-  is_ranked boolean [not null]
-  is_active boolean [not null]
-}
-
 Table positions {
   position_id int [pk, increment]
   name varchar(30) [unique, not null]
@@ -178,11 +167,11 @@ Table positions {
 
 Table lobbies {
   lobby_id bigint [pk, increment]
-  queue_type_id int [not null, ref: > queue_types.queue_type_id]
   leader_game_account_id bigint [not null, ref: > game_accounts.game_account_id]
   is_private boolean [not null]
   created_at timestamp [not null]
   closed_at timestamp
+  party_size int [not null]
 }
 
 Table lobby_members {
@@ -203,8 +192,121 @@ Table lobby_member_positions {
 Table matchmaking_tickets {
   ticket_id bigint [pk, increment]
   lobby_id bigint [not null, ref: > lobbies.lobby_id]
+  gamemode_id int [not null, ref: > gamemodes.gamemode_id]
   average_mmr int [not null]
   estimated_wait_seconds int
   queued_at timestamp [not null]
   left_queue_at timestamp
+  is_ranked bool [not null]
+}
+
+Table champions {
+  champ_id int [pk, increment]
+  name varchar(100) [unique, not null]
+  role varchar(50)  [not null]
+  recommended_position varchar(6)
+  release_date date
+  be_price int  [not null]
+  rp_price int  [not null]
+  playable bool [not null]
+}
+
+Table abilities {
+  ability_id int [pk, increment]
+  champ_id int [not null, ref: > champions.champ_id]
+  mana_cost int
+  energy_cost int
+  hp_cost int
+  cooldown int
+  description varchar(255) [not null]
+}
+
+Table skins {
+  skin_id int [pk, increment]
+  champ_id int [not null, ref: > champions.champ_id]
+  rp_price int [not null]
+  release_date date 
+}
+
+Table gamemodes {
+  gamemode_id int [pk, increment]
+  game_id int [not null, ref: > games.game_id]
+  name varchar(50) [unique, not null]
+  map_name varchar(50) [not null]
+  team_size int [not null]
+  max_party_size int [not null]
+  min_lvl_requirement int [not null]
+  description varchar(255) [not null]
+  is_active boolean [not null]
+}
+
+Table champion_selects{
+  champ_select_id bigint [pk, increment]
+  started_at timestamp [not null]
+  ended_at timestamp
+  status varchar(20) [not null]
+}
+
+Table champion_select_tickets {
+  champ_select_ticket_id bigint [pk, increment]
+  champ_select_id bigint [not null, ref: > champion_selects.champ_select_id]
+  ticket_id bigint [not null, ref: > matchmaking_tickets.ticket_id]
+}
+
+Table champion_select_players {
+  champ_select_player_id bigint [pk, increment]
+  champ_select_id bigint [not null, ref: > champion_selects.champ_select_id]
+  game_account_id bigint [not null, ref: > game_accounts.game_account_id]
+  team varchar(10) [not null]
+  position_id int [ref: > positions.position_id]
+  is_locked_in boolean [not null, default: false]
+}
+
+Table champion_select_bans {
+  ban_id bigint [pk, increment]
+  champ_select_player_id bigint [not null, ref: > champion_select_players.champ_select_player_id]
+  champ_id int [not null, ref: > champions.champ_id]
+}
+
+Table champion_select_player_loadouts {
+  loadout_id bigint [pk, increment]
+  champ_select_player_id bigint [unique, not null, ref: - champion_select_players.champ_select_player_id]
+  picked_champion_id bigint [ref: > champion_select_picked_champions.picked_champion_id]
+  rune_page_id bigint [ref: > rune_pages.rune_page_id]
+  summoner_spell1_id int [ref: > summoner_spells.spell_id]
+  summoner_spell2_id int [ref: > summoner_spells.spell_id]
+}
+
+Table rune_pages {
+  rune_page_id bigint [pk, increment]
+  name varchar(100) [not null]
+  primary_path varchar(30) [not null]
+  secondary_path varchar(30) [not null]
+}
+
+Table runes {
+  rune_id int [pk, increment]
+  name varchar(50) [unique, not null]
+  path varchar(30) [not null]
+  description varchar(255)
+}
+
+Table rune_page_runes {
+  rune_page_rune_id bigint [pk, increment]
+  rune_page_id bigint [not null, ref: > rune_pages.rune_page_id]
+  rune_id int [not null, ref: > runes.rune_id]
+}
+
+Table summoner_spells {
+  spell_id int [pk, increment]
+  name varchar(50) [unique, not null]
+  description varchar(255)
+  cooldown int
+  required_level int
+}
+
+Table champion_select_picked_champions {
+  picked_champion_id bigint [pk, increment]
+  champ_id int [not null, ref: > champions.champ_id]
+  skin_id int [ref: > skins.skin_id]
 }
