@@ -1,3 +1,4 @@
+
 Table regions {
   region_id int [pk, increment]
   code varchar(10) [unique, not null]
@@ -198,16 +199,17 @@ Table matchmaking_tickets {
   queued_at timestamp [not null]
   left_queue_at timestamp
   is_ranked bool [not null]
+  matchmaking_id bigint [ref: > matchmakings.matchmaking_id]
 }
 
 Table champions {
   champ_id int [pk, increment]
   name varchar(100) [unique, not null]
-  role varchar(50)  [not null]
+  role varchar(50) [not null]
   recommended_position varchar(6)
   release_date date
-  be_price int  [not null]
-  rp_price int  [not null]
+  be_price int [not null]
+  rp_price int [not null]
   playable bool [not null]
 }
 
@@ -225,7 +227,7 @@ Table skins {
   skin_id int [pk, increment]
   champ_id int [not null, ref: > champions.champ_id]
   rp_price int [not null]
-  release_date date 
+  release_date date
 }
 
 Table gamemodes {
@@ -240,17 +242,23 @@ Table gamemodes {
   is_active boolean [not null]
 }
 
-Table champion_selects{
-  champ_select_id bigint [pk, increment]
+Table matchmakings {
+  matchmaking_id bigint [pk, increment]
+  match_id bigint [unique, ref: - matches.match_id]
   started_at timestamp [not null]
-  ended_at timestamp
-  status varchar(20) [not null]
+  matched_at timestamp
 }
 
-Table champion_select_tickets {
-  champ_select_ticket_id bigint [pk, increment]
-  champ_select_id bigint [not null, ref: > champion_selects.champ_select_id]
-  ticket_id bigint [not null, ref: > matchmaking_tickets.ticket_id]
+Table matches {
+  match_id bigint [pk, increment]
+}
+
+Table champion_selects {
+  champ_select_id bigint [pk, increment]
+  match_id bigint [unique, not null, ref: - matches.match_id]
+  started_at timestamp [not null]
+  ended_at timestamp
+  status_id int [not null, ref: > champion_select_statuses.status_id]
 }
 
 Table champion_select_players {
@@ -271,10 +279,16 @@ Table champion_select_bans {
 Table champion_select_player_loadouts {
   loadout_id bigint [pk, increment]
   champ_select_player_id bigint [unique, not null, ref: - champion_select_players.champ_select_player_id]
-  picked_champion_id bigint [ref: > champion_select_picked_champions.picked_champion_id]
+  picked_champion_id bigint [unique, ref: > champion_select_picked_champions.picked_champion_id]
   rune_page_id bigint [ref: > rune_pages.rune_page_id]
   summoner_spell1_id int [ref: > summoner_spells.spell_id]
   summoner_spell2_id int [ref: > summoner_spells.spell_id]
+}
+
+Table champion_select_picked_champions {
+  picked_champion_id bigint [pk, increment]
+  champ_id int [not null, ref: > champions.champ_id]
+  skin_id int [ref: > skins.skin_id]
 }
 
 Table rune_pages {
@@ -305,8 +319,15 @@ Table summoner_spells {
   required_level int
 }
 
-Table champion_select_picked_champions {
-  picked_champion_id bigint [pk, increment]
-  champ_id int [not null, ref: > champions.champ_id]
-  skin_id int [ref: > skins.skin_id]
+Table champion_select_statuses {
+  status_id int [pk, increment]
+  name varchar(30) [unique, not null]
+  description varchar(255)
+}
+
+Table champion_select_cancellations {
+  cancellation_id bigint [pk, increment]
+  champ_select_id bigint [unique, not null, ref: - champion_selects.champ_select_id]
+  reason varchar(255) [not null]
+  cancelled_at timestamp [not null]
 }
