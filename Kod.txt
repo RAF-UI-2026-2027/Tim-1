@@ -243,25 +243,14 @@ Table gamemodes {
 
 Table matchmakings {
   matchmaking_id bigint [pk, increment]
-  match_id bigint [unique, ref: - matches.match_id]
+  match_id bigint [unique]
   started_at timestamp [not null]
   matched_at timestamp
 }
 
-Table matches {
-  match_id bigint [pk, increment]
-  gamemode_id int [not null, ref: > gamemodes.gamemode_id]
-  region_id int [not null, ref: > regions.region_id]
-  patch_version varchar(10) [not null]
-  loading_started_at timestamp [not null]
-  game_started_at timestamp
-  ended_at timestamp
-  duration_seconds int
-}
-
 Table champion_selects {
   champ_select_id bigint [pk, increment]
-  match_id bigint [unique, not null, ref: - matches.match_id]
+  match_id bigint [unique, not null]
   started_at timestamp [not null]
   ended_at timestamp
   status_id int [not null, ref: > champion_select_statuses.status_id]
@@ -271,7 +260,7 @@ Table champion_select_players {
   champ_select_player_id bigint [pk, increment]
   champ_select_id bigint [not null, ref: > champion_selects.champ_select_id]
   game_account_id bigint [not null, ref: > game_accounts.game_account_id]
-  side_id int [not null, ref: > team_sides.side_id]
+  side_id int [not null]
   position_id int [ref: > positions.position_id]
   is_locked_in boolean [not null, default: false]
 }
@@ -338,6 +327,17 @@ Table champion_select_cancellations {
   cancelled_at timestamp [not null]
 }
 
+Table matches {
+  match_id bigint [pk, increment]
+  gamemode_id int [not null]
+  region_id int [not null]
+  patch_version varchar(10) [not null]
+  loading_started_at timestamp [not null]
+  game_started_at timestamp
+  ended_at timestamp
+  duration_seconds int
+}
+
 Table team_sides {
   side_id int [pk, increment]
   name varchar(10) [unique, not null]
@@ -358,19 +358,19 @@ Table match_teams {
 Table match_participants {
   participant_id bigint [pk, increment]
   match_team_id bigint [not null, ref: > match_teams.match_team_id]
-  game_account_id bigint [not null, ref: > game_accounts.game_account_id]
-  champ_select_player_id bigint [unique, not null, ref: - champion_select_players.champ_select_player_id]
-  position_id int [ref: > positions.position_id]
-  champ_id int [not null, ref: > champions.champ_id]
-  skin_id int [ref: > skins.skin_id]
-  summoner_spell1_id int [not null, ref: > summoner_spells.spell_id]
-  summoner_spell2_id int [not null, ref: > summoner_spells.spell_id]
+  game_account_id bigint [not null]
+  champ_select_player_id bigint [unique, not null]
+  position_id int
+  champ_id int [not null]
+  skin_id int
+  summoner_spell1_id int [not null]
+  summoner_spell2_id int [not null]
 }
 
 Table match_participant_runes {
   participant_rune_id bigint [pk, increment]
   participant_id bigint [not null, ref: > match_participants.participant_id]
-  rune_id int [not null, ref: > runes.rune_id]
+  rune_id int [not null]
 }
 
 Table match_participant_stats {
@@ -385,4 +385,73 @@ Table match_participant_stats {
   damage_dealt int [not null, default: 0]
   damage_taken int [not null, default: 0]
   vision_score int [not null, default: 0]
+}
+
+Table match_fairness_checks {
+  fairness_check_id bigint [pk, increment]
+  match_id bigint [unique, not null, ref: - matches.match_id]
+  blue_avg_mmr int [not null]
+  red_avg_mmr int [not null]
+  mmr_difference int [not null]
+  is_fair boolean [not null]
+  checked_at timestamp [not null]
+}
+
+Table fairness_issue_types {
+  issue_type_id int [pk, increment]
+  name varchar(50) [unique, not null]
+  description varchar(255)
+  triggers_lp_protection boolean [not null]
+}
+
+Table match_fairness_issues {
+  fairness_issue_id bigint [pk, increment]
+  fairness_check_id bigint [not null, ref: > match_fairness_checks.fairness_check_id]
+  issue_type_id int [not null, ref: > fairness_issue_types.issue_type_id]
+  participant_id bigint [ref: > match_participants.participant_id]
+  detected_at timestamp [not null]
+}
+
+Table performance_grades {
+  grade_id int [pk, increment]
+  name varchar(5) [unique, not null]
+  min_score int [not null]
+  max_score int [not null]
+}
+
+Table ranked_tiers {
+  tier_id int [pk, increment]
+  name varchar(20) [not null]
+  division varchar(5)
+  tier_order int [unique, not null]
+}
+
+Table ranked_entries {
+  ranked_entry_id bigint [pk, increment]
+  game_account_id bigint [not null, ref: > game_accounts.game_account_id]
+  gamemode_id int [not null, ref: > gamemodes.gamemode_id]
+  tier_id int [not null, ref: > ranked_tiers.tier_id]
+  league_points int [not null, default: 0]
+  mmr int [not null]
+  wins int [not null, default: 0]
+  losses int [not null, default: 0]
+  updated_at timestamp [not null]
+}
+
+Table match_outcomes {
+  outcome_id bigint [pk, increment]
+  game_account_id bigint [not null, ref: > game_accounts.game_account_id]
+  ranked_entry_id bigint [ref: > ranked_entries.ranked_entry_id]
+  match_id bigint [not null]
+  is_winner boolean [not null]
+  performance_score int [not null]
+  grade_id int [not null, ref: > performance_grades.grade_id]
+  lp_before int
+  lp_change int
+  mmr_before int [not null]
+  mmr_change int [not null]
+  tier_before_id int [ref: > ranked_tiers.tier_id]
+  tier_after_id int [ref: > ranked_tiers.tier_id]
+  is_lp_protected boolean [not null]
+  created_at timestamp [not null]
 }
